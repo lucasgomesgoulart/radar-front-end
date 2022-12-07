@@ -62,22 +62,15 @@ const Formulario = () => {
                 datebirthday: datebirthday,
                 phone: phone,
                 email: email
+            }).then(response => {
+                if (response.status == 200) {
+                    setDataSource([...dataSource], response.data)
+                }
             })
-            if (data.status === 200) {
-                console.log(data)
-                alert(data.data.message)
-            } else {
-                console.log(data)
-            }
-        } catch (error) {
-            console.log(error)
+        } catch {
+            console.log('t')
         }
     }
-
-    const onDelete = async (record) =>{
-        const data = await api.delete(`/${record}`)
-        
-        }
 
     //MODAL
     const showModal = () => {
@@ -112,48 +105,70 @@ const Formulario = () => {
             .catch(() => {
                 console.log('erro')
             })
-    }, [])
+    }, [dataSource])
 
 
     // TABLE ANTD
     const columns = [
         {
-            key: 1,
+            key: 'name',
             title: 'Full name',
             dataIndex: 'name'
         },
         {
-            key: 2,
+            key: 'email',
             title: 'Email',
             dataIndex: 'email'
         },
         {
-            key: 3,
+            key: 'datebirthday',
             title: 'Date birthday',
             dataIndex: 'datebirthday'
         },
         {
-            key: 4,
+            key: 'phone',
             title: 'Phone',
             dataIndex: 'phone'
         },
         {
-            key: 5,
+            key: 'sex',
             title: 'Sex',
             dataIndex: 'sex'
         },
         {
-            key: 6,
-            title: 'Options',
+            key: 'action',
+            title: 'Actions',
             render: (record) => {
                 return <>
-                    <EditOutlined  onClick={onDelete(record)} style={{ color: 'blue', marginRight: '25px', fontSize: 20 }}/>
-                    <DeleteOutlined style={{ color: 'red', fontSize: 20}} />
+                    <EditOutlined onClick={() => updateUser(record)} style={{ color: 'blue', marginRight: '25px', fontSize: 20 }} />
+                    <DeleteOutlined onClick={() => onDelete(record)} style={{ color: 'red', fontSize: 20 }} />
                 </>
             }
         }
     ]
 
+    const onDelete = async (record) => {
+        const data = await api.delete(`deletar/${record.user_id}`)
+        console.log(data.status)
+        if (data.status == 204) {
+            Modal.confirm({
+                title: 'Are you sure you want to delete it?',
+                okText: 'Yes',
+                cancelText: 'No',
+                onOk: () => {
+                    setDataSource(dataSource.filter(item => item.user_id !== record.user_id))
+
+                }
+            })
+
+        }
+    }
+
+    const updateUser = async (record) => {
+        const data = await api.update(`update/${record.user_id}`)
+
+        
+    }
 
     return (
         <ContainerForm>
