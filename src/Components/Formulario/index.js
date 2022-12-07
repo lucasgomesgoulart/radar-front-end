@@ -1,9 +1,9 @@
 import styled from 'styled-components'
 import React, { useEffect } from 'react';
-import { Input, Form, Table, Button, Modal, DatePicker, Select } from 'antd';
+import { Input, Form, Table, Button, Modal, DatePicker, Select} from 'antd';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useState } from 'react';
 import api from '../../api'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 
 
 const ContainerForm = styled.div`
@@ -74,10 +74,6 @@ const Formulario = () => {
         }
     }
 
-    const onDelete = async (record) =>{
-        const data = await api.delete(`/${record}`)
-        
-        }
 
     //MODAL
     const showModal = () => {
@@ -105,15 +101,22 @@ const Formulario = () => {
 
 
     // listando usuarios
+    const [gridData, setGridData] = useState([])
+    const [loading, setLoading] = useState(false)
+
     useEffect(() => {
-        api.get('/select').then((response) => {
-            setDataSource(response.data)
-        })
-            .catch(() => {
-                console.log('erro')
-            })
+        loadData()
     }, [])
 
+    const loadData = async () => {
+        setLoading(true)
+        const response = await api.get('/select').then((response) => {
+            setGridData(response.data)
+            setLoading(false)
+        })
+    }
+
+ 
 
     // TABLE ANTD
     const columns = [
@@ -129,7 +132,7 @@ const Formulario = () => {
         },
         {
             key: 3,
-            title: 'Date birthday',
+            title: 'Birthday',
             dataIndex: 'datebirthday'
         },
         {
@@ -145,15 +148,20 @@ const Formulario = () => {
         {
             key: 6,
             title: 'Options',
+            dataIndex: 'options',
             render: (record) => {
                 return <>
-                    <EditOutlined  onClick={onDelete(record)} style={{ color: 'blue', marginRight: '25px', fontSize: 20 }}/>
+                    <EditOutlined onClick={deleteUser(record)} style={{ color: 'blue', marginRight: '25px', fontSize: 20 }}/>
                     <DeleteOutlined style={{ color: 'red', fontSize: 20}} />
                 </>
             }
-        }
+        },
     ]
 
+    const deleteUser = async (record) =>{
+        const response = await api.delete(`/deletar/${record}`)
+        response(gridData)
+    }
 
     return (
         <ContainerForm>
@@ -178,7 +186,7 @@ const Formulario = () => {
 
             <TableAntd
                 columns={columns}
-                dataSource={dataSource}
+                dataSource={gridData}
             >
             </TableAntd>
 
@@ -192,8 +200,8 @@ const Formulario = () => {
 
                 <Input placeholder='Search user by name' onChange={e => {
                     const text = e.target.value
-                    const result = dataSource.filter(user => user.name.includes(text))
-                    setDataSource(result)
+                    const result = gridData.filter(user => user.name.includes(text))
+                    setGridData(result)
                 }}
                 />
             </ContainerBotoes>
