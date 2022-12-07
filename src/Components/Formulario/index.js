@@ -166,7 +166,9 @@ const Formulario = () => {
 
     const updateUser = async (record) => {
         const data = await api.update(`update/${record.user_id}`)
-
+        if(data.status == 200){
+            
+        }
         
     }
 
