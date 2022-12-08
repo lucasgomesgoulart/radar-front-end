@@ -1,9 +1,10 @@
 import styled from 'styled-components'
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Input, Form, Table, Button, Modal, DatePicker, Select } from 'antd';
 import { useState } from 'react';
 import api from '../../api'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 
 
 const ContainerForm = styled.div`
@@ -52,33 +53,38 @@ const Formulario = () => {
     const [phone, setPhone] = useState('')
     const [sex, setSex] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false);
-
+    const [editMode, setEditMode] = useState(false)
+    const [id, setId] = useState('')
     // função para cadastrar no banco
-    const onRegisterPressed = async () => {
-        try {
-            const data = await api.post('/insert', {
-                name: name,
-                sex: sex,
-                datebirthday: datebirthday,
-                phone: phone,
-                email: email
-            }).then(response => {
-                if (response.status == 200) {
-                    setDataSource([...dataSource], response.data)
-                }
-            })
-        } catch {
-            console.log('t')
-        }
-    }
+
 
     //MODAL
-    const showModal = () => {
-        setIsModalOpen(true);
+    const showModal = (editing, record) => {
+        setIsModalOpen(true)
+        setEditMode(editing)
+        if (record) {
+            setName(record.name)
+            setEmail(record.email)
+            setDatebirthday(dayjs(record.datebirthday))
+            setPhone(record.phone)
+            setSex(record.sex)
+            setId(record.user_id)
+        } else {
+            setName('')
+            setEmail('')
+            setDatebirthday('')
+            setPhone('')
+            setSex('')
+            setId('')
+        }
     };
     const handleOk = () => {
+        if (editMode) {
+            updateUser()
+        } else {
+            onRegisterPressed()
+        }
         setIsModalOpen(false);
-        onRegisterPressed()
     };
     const handleCancel = () => {
         setIsModalOpen(false);
@@ -98,15 +104,36 @@ const Formulario = () => {
 
 
     // listando usuarios
-    useEffect(() => {
-        api.get('/select').then((response) => {
+    const findUsers = useCallback((filter= '') => {
+        api.get(`/select?name=${filter}`).then((response) => {
             setDataSource(response.data)
         })
             .catch(() => {
                 console.log('erro')
             })
-    }, [dataSource])
+    }, [])
 
+    useEffect(() => {
+        findUsers()
+    }, [findUsers])
+
+    const onRegisterPressed = async () => {
+        try {
+            const data = await api.post('/insert', {
+                name: name,
+                sex: sex,
+                datebirthday: datebirthday,
+                phone: phone,
+                email: email
+            }).then(response => {
+                if (response.status == 200) {
+                    findUsers()
+                }
+            })
+        } catch {
+            console.log('t')
+        }
+    }
 
     // TABLE ANTD
     const columns = [
@@ -140,7 +167,7 @@ const Formulario = () => {
             title: 'Actions',
             render: (record) => {
                 return <>
-                    <EditOutlined onClick={() => updateUser(record)} style={{ color: 'blue', marginRight: '25px', fontSize: 20 }} />
+                    <EditOutlined onClick={() => showModal(true, record)} style={{ color: 'blue', marginRight: '25px', fontSize: 20 }} />
                     <DeleteOutlined onClick={() => onDelete(record)} style={{ color: 'red', fontSize: 20 }} />
                 </>
             }
@@ -148,47 +175,50 @@ const Formulario = () => {
     ]
 
     const onDelete = async (record) => {
-        const data = await api.delete(`deletar/${record.user_id}`)
-        console.log(data.status)
-        if (data.status == 204) {
-            Modal.confirm({
-                title: 'Are you sure you want to delete it?',
-                okText: 'Yes',
-                cancelText: 'No',
-                onOk: () => {
-                    setDataSource(dataSource.filter(item => item.user_id !== record.user_id))
-
-                }
-            })
-
-        }
+        Modal.confirm({
+            title: 'Are you sure you want to delete it?',
+            okText: 'Yes',
+            cancelText: 'No',
+            onOk: () => {
+                api.delete(`deletar/${record.user_id}`).then(() => {
+                    findUsers()
+                })
+            }
+        })
     }
 
-    const updateUser = async (record) => {
-        const data = await api.update(`update/${record.user_id}`)
-        if(data.status == 200){
-            
-        }
+    const updateUser = async () => {
+        const data = await api.put(`update/${id}`, {
+            name,
+            email,
+            sex,
+            phone,
+            datebirthday
+        })
         
+        if (data.status == 200) {
+            findUsers()
+        }
+
     }
 
     return (
         <ContainerForm>
-            <Modal open={isModalOpen} closable={true} okText={'Add'} onOk={handleOk} onCancel={handleCancel}>
+            <Modal open={isModalOpen} closable={true} okText={editMode ? 'Edit' : 'Add'} onOk={handleOk} onCancel={handleCancel}>
                 <Form>
                     <div>
                         <InputCustom value={name} placeholder='Name' onChange={(e) => setName(e.target.value)} />
                         <InputCustom value={email} placeholder='Email' onChange={(e) => setEmail(e.target.value)} />
                     </div>
                     <div>
-                        <Selectantd placeholder='Your sex' onChange={selectChange}>
+                        <Selectantd value={sex} placeholder='Your sex' onChange={selectChange}>
                             <Option value="m">Masculine</Option>
                             <Option value="f">Feminine</Option>
                         </Selectantd>
                         <InputCustom value={phone} placeholder='Phone' onChange={(e) => setPhone(e.target.value)} />
                     </div>
                     <div>
-                        <Picker placeholder='Your Birthday' format={"D/M/YYYY"} onChange={onChangePicker} />
+                        <Picker placeholder='Your Birthday' format={"DD/MM/YYYY"} value={datebirthday} onChange={onChangePicker} />
                     </div>
                 </Form>
             </Modal>
@@ -202,15 +232,14 @@ const Formulario = () => {
             <ContainerBotoes>
                 <ButtonCustom
                     type='primary'
-                    onClick={showModal}
+                    onClick={() => showModal(false, undefined)}
                 >
                     Add New
                 </ButtonCustom>
 
                 <Input placeholder='Search user by name' onChange={e => {
                     const text = e.target.value
-                    const result = dataSource.filter(user => user.name.includes(text))
-                    setDataSource(result)
+                    findUsers(text)
                 }}
                 />
             </ContainerBotoes>
